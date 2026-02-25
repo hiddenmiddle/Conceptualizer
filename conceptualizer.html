@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Супервизорская Станция: Анализ и Концептуализация</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4B3AFF;
+      --primary-hover: #3a2de0;
+      --bg: #f4f5f9;
+      --panel-bg: #ffffff;
+      --text-main: #252525;
+      --text-sec: #6e6e7e;
+      --border: #e0e0ed;
+      --highlight: #fff9c4;
+      --highlight-active: #ffeb3b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    header {
+      height: 60px;
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 10;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
+    h1 { font-size: 1.25rem; font-weight: 700; color: var(--primary); margin: 0; }
+    
+    .toolbar { display: flex; gap: 10px; }
+    .btn {
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #F0F0F7; color: var(--primary); }
+    .btn-secondary:hover { background: #e5e5f0; }
+    .btn-danger { background: #fff0f0; color: #d63031; }
+    .btn-danger:hover { background: #ffe0e0; }
+
+    /* Main Layout */
+    .workspace {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 60px);
+      overflow: hidden;
+    }
+
+    /* Left Panel: Transcript */
+    .transcript-panel {
+      width: 400px;
+      min-width: 300px;
+      max-width: 600px;
+      background: var(--panel-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: width 0.1s;
+    }
+
+    .panel-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      background: #fafafc;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #transcriptEditor {
+      flex: 1;
+      padding: 24px;
+      outline: none;
+      overflow-y: auto;
+      line-height: 1.6;
+      font-size: 1rem;
+      white-space: pre-wrap;
+      color: #333;
+    }
+    
+    #transcriptEditor:empty:before {
+      content: 'Вставьте текст сессии здесь...';
+      color: #aaa;
+    }
+
+    /* Highlight styles */
+    .linked-text {
+      background-color: var(--highlight);
+      border-bottom: 2px solid var(--primary);
+      cursor: pointer;
+      padding: 2px 0;
+      border-radius: 2px;
+      transition: background 0.2s;
+    }
+    .linked-text:hover, .linked-text.active {
+      background-color: var(--highlight-active);
+    }
+
+    /* Resizer */
+    .resizer {
+      width: 5px;
+      background: transparent;
+      cursor: col-resize;
+      position: absolute;
+      right: -2px;
+      top: 0;
+      bottom: 0;
+      z-index: 20;
+    }
+    .resizer:hover { background: var(--primary); opacity: 0.3; }
+
+    /* Right Panel: Canvas & Controls */
+    .graph-panel {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: #f0f2f8;
+    }
+
+    .canvas-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+    }
+    .canvas-wrapper:active { cursor: grabbing; }
+
+    canvas { display: block; }
+
+    /* Controls Overlay */
+    .controls-overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(5px);
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      width: 340px;
+      max-height: calc(100% - 40px);
+      overflow-y: auto;
+      transition: opacity 0.3s, transform 0.3s;
+      border: 1px solid white;
+    }
+    .controls-overlay.collapsed {
+      opacity: 0.6;
+      height: 50px;
+      overflow: hidden;
+    }
+    .controls-toggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+      color: var(--text-sec);
+    }
+
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 6px; color: var(--text-sec); }
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #dcdce6;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: 'Inter', sans-serif;
+      transition: border 0.2s;
+    }
+    .form-control:focus { border-color: var(--primary); outline: none; }
+    
+    .row { display: flex; gap: 10px; }
+    .col { flex: 1; }
+
+    /* Context Menu / Tooltip */
+    #selectionTooltip {
+      position: absolute;
+      background: #252525;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    #selectionTooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    #selectionTooltip:hover { background: #000; }
+
+    /* Autosave Indicator */
+    .autosave-indicator {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 8px 16px;
+      background: white;
+      color: var(--primary);
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .autosave-indicator.show { opacity: 1; }
+
+    /* Lists */
+    .item-list { margin-top: 5px; max-height: 250px; overflow-y: auto; }
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      background: #f9f9fc;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+    .list-item:hover { background: #f0f0f5; border-color: #e0e0ed; }
+    .list-actions span { cursor: pointer; margin-left: 8px; opacity: 0.6; }
+    .list-actions span:hover { opacity: 1; color: var(--primary); }
+    
+    .cat-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      color: white;
+      margin-right: 6px;
+      font-weight: 500;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    /* MODAL STYLES */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      width: 400px;
+      max-width: 90%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      transform: translateY(20px);
+      transition: transform 0.2s;
+    }
+    .modal-overlay.open .modal-content {
+      transform: translateY(0);
+    }
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: var(--text-main);
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    
+    h3.panel-title {
+        margin: 20px 0 10px 0; 
+        font-size: 1rem; 
+        color: var(--text-main);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+    }
+
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Супервизорская Станция</h1>
+  <div class="toolbar">
+    <button class="btn btn-secondary" id="demoBtn">🎲 Демо данные</button>
+    <button class="btn btn-secondary" id="importBtn">⬆ Загрузить</button>
+    <button class="btn btn-primary" id="saveBtn">💾 Скачать JSON</button>
+    <button class="btn btn-danger" id="clearBtn">Очистить</button>
+    <input type="file" id="importFile" accept=".json" style="display:none;">
+  </div>
+</header>
+
+<div class="workspace">
+  <!-- Left Panel: Transcript -->
+  <div class="transcript-panel" id="transcriptPanel">
+    <div class="panel-header">
+      <span>Транскрипт сессии</span>
+      <span style="font-size:0.8rem; color:#aaa;">Выделите текст для анализа</span>
+    </div>
+    <div id="transcriptEditor" contenteditable="true" spellcheck="false"></div>
+    <div class="resizer" id="resizer"></div>
+  </div>
+
+  <!-- Right Panel: Graph -->
+  <div class="graph-panel">
+    <div class="canvas-wrapper" id="canvasContainer">
+      <canvas id="conceptCanvas"></canvas>
+      
+      <!-- Controls Overlay (Side Panel) -->
+      <div class="controls-overlay">
+        <div class="controls-toggle" onclick="this.parentElement.classList.toggle('collapsed')">−</div>
+        
+        <h3 style="margin:0 0 15px 0; font-size:1.1rem;">Быстрая связь</h3>
+        <form id="addConnForm">
+           <div class="row">
+             <div class="col"><select id="connFrom" class="form-control" style="font-size:0.85rem;"></select></div>
+             <div style="display:flex;align-items:center;">→</div>
+             <div class="col"><select id="connTo" class="form-control" style="font-size:0.85rem;"></select></div>
+           </div>
+           <div class="row" style="margin-top:10px;">
+             <div class="col">
+               <select id="connType" class="form-control">
+                 <option value="activates">Активирует</option>
+                 <option value="inhibits">Подавляет</option>
+                 <option value="supports">Поддерживает</option>
+                 <option value="contradicts">Противоречит</option>
+               </select>
+             </div>
+             <div style="width:60px">
+               <input type="number" id="connStrength" class="form-control" value="3" min="1" max="5">
+             </div>
+           </div>
+           <button type="button" id="addConnBtn" class="btn btn-secondary" style="width:100%; margin-top:10px; justify-content:center;">Связать</button>
+        </form>
+
+        <h3 class="panel-title">
+            Узлы
+            <button class="btn btn-secondary" onclick="openNodeModal('create')" style="padding: 4px 10px; font-size:0.8rem;">+ Новый</button>
+        </h3>
+        <div class="item-list" id="nodesList"></div>
+
+        <h3 class="panel-title">Связи</h3>
+        <div class="item-list" id="connectionsList"></div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Node Modal Dialog -->
+<div class="modal-overlay" id="nodeModal">
+  <div class="modal-content">
+    <div class="modal-title" id="modalTitle">Редактирование узла</div>
+    <form id="modalForm" onsubmit="event.preventDefault(); handleModalSave();">
+      <input type="hidden" id="modalNodeId">
+      
+      <div class="form-group">
+        <label>Тип процесса</label>
+        <select id="modalType" class="form-control" onchange="updateCategoryVisibility()">
+          <option value="base">Базовый процесс</option>
+          <option value="part">Часть / Субличность</option>
+          <option value="integrative">Интегративный паттерн</option>
+        </select>
+      </div>
+      
+      <div class="form-group" id="modalCategoryGroup">
+        <label>Категория</label>
+        <select id="modalCategory" class="form-control">
+          <option value="attention">Внимание</option>
+          <option value="cognitive">Когниции</option>
+          <option value="affective">Эмоции</option>
+          <option value="selfing">Селфинг</option>
+          <option value="behavioral">Поведение</option>
+          <option value="motivational">Мотивация</option>
+          <option value="biophysiological">Биофизиология</option>
+          <option value="situational">Ситуация</option>
+          <option value="personal_history">История</option>
+          <option value="socio_cultural">Социум</option>
+          <option value="therapeutic">Терапия</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Название (кратко)</label>
+        <input type="text" id="modalName" class="form-control" placeholder="Например: Избегание" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Цитата / Описание</label>
+        <textarea id="modalDesc" class="form-control" rows="3" placeholder="Детали или цитата из текста"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('nodeModal')">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Connection Edit Modal -->
+<div class="modal-overlay" id="connEditModal">
+  <div class="modal-content">
+    <div class="modal-title">Редактирование связи</div>
+    <form id="connEditForm" onsubmit="event.preventDefault(); handleConnEditSave();">
+      <input type="hidden" id="editConnIndex">
+      
+      <div class="form-group">
+        <label>Откуда → Куда</label>
+        <input type="text" id="editConnLabel" class="form-control" disabled style="background:#f4f5f9; color:#666;">
+      </div>
+      
+      <div class="form-group">
+        <label>Тип связи</label>
+        <select id="editConnType" class="form-control">
+           <option value="activates">Активирует (Зеленый)</option>
+           <option value="inhibits">Подавляет (Красный)</option>
+           <option value="supports">Поддерживает (Синий)</option>
+           <option value="contradicts">Противоречит (Оранжевый)</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>Сила связи (толщина)</label>
+        <input type="number" id="editConnStrength" class="form-control" min="1" max="5">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" onclick="deleteConnFromModal()" style="margin-right:auto;">Удалить связь</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal('connEditModal')">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Floating Tooltip for Text Selection -->
+<div id="selectionTooltip">✨ Создать узел из выделения</div>
+
+<!-- Autosave Indicator -->
+<div class="autosave-indicator" id="autosaveIndicator">Автосохранение...</div>
+
+<script>
+/**
+ * APP STATE
+ */
+let state = {
+  nodes: [],
+  connections: [],
+  zoom: 1.0,
+  pan: { x: 0, y: 0 },
+  dragging: null,
+  dragOffset: { x: 0, y: 0 },
+  isPanning: false,
+  panStart: { x: 0, y: 0 },
+  lastId: 0
+};
+
+// Colors based on categories
+const colors = {
+  attention: "#4dabf7", cognitive: "#ff6b6b", affective: "#ffd43b", 
+  selfing: "#a9e34b", behavioral: "#ff922b", motivational: "#7950f2", 
+  biophysiological: "#99e9f2", situational: "#c0eb75",
+  personal_history: "#c2255c", socio_cultural: "#f783ac", therapeutic: "#b197fc",
+  part: "#FFB347", integrative: "#6B8E23", base: "#dee2e6"
+};
+
+const categoryLabels = {
+  attention: "Внимание",
+  cognitive: "Когниции",
+  affective: "Эмоции",
+  selfing: "Селфинг",
+  behavioral: "Поведение",
+  motivational: "Мотивация",
+  biophysiological: "Биофизиология",
+  situational: "Ситуация",
+  personal_history: "История",
+  socio_cultural: "Социум",
+  therapeutic: "Терапия",
+  base: "Базовый",
+  part: "Часть",
+  integrative: "Паттерн"
+};
+
+const canvas = document.getElementById('conceptCanvas');
+const ctx = canvas.getContext('2d');
+const transcriptEditor = document.getElementById('transcriptEditor');
+const tooltip = document.getElementById('selectionTooltip');
+
+/**
+ * INIT & RESIZE
+ */
+function resize() {
+  const container = document.getElementById('canvasContainer');
+  canvas.width = container.clientWidth;
+  canvas.height = container.clientHeight;
+  redraw();
+}
+window.addEventListener('resize', resize);
+setTimeout(resize, 100);
+
+/**
+ * GRAPH DRAWING ENGINE
+ */
+function toScreen(x, y) {
+  return {
+    x: (x + state.pan.x) * state.zoom,
+    y: (y + state.pan.y) * state.zoom
+  };
+}
+
+function toWorld(x, y) {
+  return {
+    x: (x / state.zoom) - state.pan.x,
+    y: (y / state.zoom) - state.pan.y
+  };
+}
+
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Grid
+  ctx.save();
+  ctx.strokeStyle = "#eef0f5";
+  ctx.lineWidth = 1;
+  const gridSize = 50 * state.zoom;
+  const offsetX = (state.pan.x * state.zoom) % gridSize;
+  const offsetY = (state.pan.y * state.zoom) % gridSize;
+  
+  for(let x = offsetX; x < canvas.width; x += gridSize) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for(let y = offsetY; y < canvas.height; y += gridSize) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Connections
+  state.connections.forEach(conn => {
+    const fromNode = state.nodes.find(n => n.id === conn.from);
+    const toNode = state.nodes.find(n => n.id === conn.to);
+    if (!fromNode || !toNode) return;
+
+    const start = toScreen(fromNode.x, fromNode.y);
+    const end = toScreen(toNode.x, toNode.y);
+
+    ctx.save();
+    const colorMap = {activates:"#51cf66", inhibits:"#fa5252", supports:"#228be6", contradicts:"#fd7e14"};
+    ctx.strokeStyle = colorMap[conn.type] || "#adb5bd";
+    ctx.lineWidth = (conn.strength + 1) * state.zoom * 0.5;
+    
+    // Line
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+
+    // Arrowhead
+    const angle = Math.atan2(end.y - start.y, end.x - start.x);
+    const headLen = 15 * state.zoom;
+    const endX = end.x - (25 * state.zoom * Math.cos(angle)); // Stop before center
+    const endY = end.y - (25 * state.zoom * Math.sin(angle));
+    
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI / 6), endY - headLen * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI / 6), endY - headLen * Math.sin(angle + Math.PI / 6));
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // Nodes
+  state.nodes.forEach(node => {
+    const pos = toScreen(node.x, node.y);
+    const radius = 25 * state.zoom;
+
+    ctx.save();
+    ctx.translate(pos.x, pos.y);
+    
+    // Shape based on type
+    ctx.fillStyle = colors[node.category] || colors.base;
+    if (node.type === 'part') ctx.fillStyle = colors.part;
+    if (node.type === 'integrative') ctx.fillStyle = colors.integrative;
+    
+    ctx.shadowColor = "rgba(0,0,0,0.1)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
+
+    ctx.beginPath();
+    if (node.type === 'part') {
+      ctx.rect(-radius, -radius, radius*2, radius*2);
+    } else if (node.type === 'integrative') {
+      for (let i = 0; i < 6; i++) {
+        ctx.lineTo(radius * Math.cos(i * Math.PI / 3), radius * Math.sin(i * Math.PI / 3));
+      }
+      ctx.closePath();
+    } else {
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.shadowColor = "transparent";
+    
+    // Border
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle = "#252525";
+    ctx.font = `600 ${12 * state.zoom}px 'Inter'`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    // Truncate name
+    const shortName = node.name.length > 12 ? node.name.substring(0, 10) + ".." : node.name;
+    ctx.fillText(shortName, 0, radius + 15 * state.zoom);
+
+    // ID inside
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.font = `bold ${10 * state.zoom}px 'Inter'`;
+    ctx.fillText(node.id, 0, 0);
+
+    ctx.restore();
+  });
+}
+
+/**
+ * INTERACTION LOGIC
+ */
+// Helper: Distance to Line Segment for Connection Clicking
+function distToSegment(p, v, w) {
+  function sqr(x) { return x * x }
+  function dist2(v, w) { return sqr(v.x - w.x) + sqr(v.y - w.y) }
+  var l2 = dist2(v, w);
+  if (l2 == 0) return dist2(p, v);
+  var t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.sqrt(dist2(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) }));
+}
+
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  const worldPos = toWorld(mouseX, mouseY);
+
+  // Check node hit
+  const clickedNode = state.nodes.slice().reverse().find(n => {
+    const dist = Math.hypot(n.x - worldPos.x, n.y - worldPos.y);
+    return dist < 30;
+  });
+
+  if (clickedNode) {
+    state.dragging = clickedNode;
+    state.dragOffset = { x: clickedNode.x - worldPos.x, y: clickedNode.y - worldPos.y };
+    
+    // Focus related text in transcript
+    highlightTranscriptText(clickedNode.id);
+  } else {
+    state.isPanning = true;
+    state.panStart = { x: e.clientX, y: e.clientY };
+    canvas.style.cursor = 'grabbing';
+  }
+});
+
+// Double click to Edit Node OR Connection
+canvas.addEventListener('dblclick', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  const worldPos = toWorld(mouseX, mouseY);
+
+  // 1. Check Node Hit
+  const clickedNode = state.nodes.slice().reverse().find(n => {
+    const dist = Math.hypot(n.x - worldPos.x, n.y - worldPos.y);
+    return dist < 30;
+  });
+
+  if (clickedNode) {
+    openNodeModal('edit', clickedNode);
+    return;
+  }
+
+  // 2. Check Connection Hit
+  // Threshold in pixels
+  const hitThreshold = 10 / state.zoom; 
+  const clickedConnIndex = state.connections.findIndex(conn => {
+     const n1 = state.nodes.find(n => n.id === conn.from);
+     const n2 = state.nodes.find(n => n.id === conn.to);
+     if(!n1 || !n2) return false;
+     return distToSegment(worldPos, n1, n2) < hitThreshold;
+  });
+
+  if (clickedConnIndex !== -1) {
+    openConnEditModal(clickedConnIndex);
+  }
+});
+
+window.addEventListener('mousemove', e => {
+  if (state.dragging) {
+    const rect = canvas.getBoundingClientRect();
+    const worldPos = toWorld(e.clientX - rect.left, e.clientY - rect.top);
+    state.dragging.x = worldPos.x + state.dragOffset.x;
+    state.dragging.y = worldPos.y + state.dragOffset.y;
+    redraw();
+  } else if (state.isPanning) {
+    const dx = (e.clientX - state.panStart.x) / state.zoom;
+    const dy = (e.clientY - state.panStart.y) / state.zoom;
+    state.pan.x += dx;
+    state.pan.y += dy;
+    state.panStart = { x: e.clientX, y: e.clientY };
+    redraw();
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  if (state.dragging) saveState();
+  state.dragging = null;
+  state.isPanning = false;
+  canvas.style.cursor = 'default';
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const scale = e.deltaY > 0 ? 0.9 : 1.1;
+  state.zoom = Math.max(0.1, Math.min(5, state.zoom * scale));
+  redraw();
+});
+
+/**
+ * MODAL LOGIC (NODES)
+ */
+let tempSelectionRange = null;
+
+function updateCategoryVisibility() {
+    const type = document.getElementById('modalType').value;
+    const categoryGroup = document.getElementById('modalCategoryGroup');
+    if (type === 'part' || type === 'integrative') {
+        categoryGroup.style.display = 'none';
+    } else {
+        categoryGroup.style.display = 'block';
+    }
+}
+
+function openNodeModal(mode, nodeOrData) {
+  const modal = document.getElementById('nodeModal');
+  const title = document.getElementById('modalTitle');
+  
+  // Reset Form
+  document.getElementById('modalForm').reset();
+  
+  if (mode === 'create') {
+    title.textContent = 'Новый узел';
+    document.getElementById('modalNodeId').value = '';
+    document.getElementById('modalType').value = 'base'; // Default
+    
+    // If opened from selection
+    if (nodeOrData && nodeOrData.text) {
+      const text = nodeOrData.text;
+      document.getElementById('modalName').value = text.length > 30 ? text.substring(0, 30) + '...' : text;
+      document.getElementById('modalDesc').value = text;
+      tempSelectionRange = nodeOrData.range; // Store range to wrap later
+    }
+  } else if (mode === 'edit') {
+    title.textContent = 'Редактировать узел';
+    const node = nodeOrData;
+    document.getElementById('modalNodeId').value = node.id;
+    document.getElementById('modalName').value = node.name;
+    document.getElementById('modalDesc').value = node.desc || '';
+    document.getElementById('modalType').value = node.type;
+    // Set category if it's base, otherwise default
+    if (node.type === 'base') {
+        document.getElementById('modalCategory').value = node.category;
+    }
+    tempSelectionRange = null;
+  }
+  
+  updateCategoryVisibility();
+  modal.classList.add('open');
+}
+
+function closeModal(modalId) {
+  document.getElementById(modalId).classList.remove('open');
+  tempSelectionRange = null;
+}
+
+function handleModalSave() {
+  const idStr = document.getElementById('modalNodeId').value;
+  const name = document.getElementById('modalName').value;
+  const desc = document.getElementById('modalDesc').value;
+  const type = document.getElementById('modalType').value;
+  
+  // Auto-assign category for Parts/Integrative
+  let category = document.getElementById('modalCategory').value;
+  if (type === 'part') category = 'part';
+  if (type === 'integrative') category = 'integrative';
+
+  if (!name) return;
+
+  if (idStr) {
+    // EDIT EXISTING
+    const id = parseInt(idStr);
+    const node = state.nodes.find(n => n.id === id);
+    if (node) {
+      node.name = name;
+      node.desc = desc;
+      node.type = type;
+      node.category = category;
+    }
+  } else {
+    // CREATE NEW
+    state.lastId++;
+    // Ensure ID is unique
+    while(state.nodes.some(n => n.id === state.lastId)) {
+      state.lastId++;
+    }
+    const id = state.lastId;
+    
+    // Random pos near center
+    const centerWorld = toWorld(canvas.width/2, canvas.height/2);
+    const x = centerWorld.x + (Math.random() - 0.5) * 200;
+    const y = centerWorld.y + (Math.random() - 0.5) * 200;
+
+    state.nodes.push({ id, name, type, category, desc, x, y, textSource: desc });
+
+    // Apply text highlighting if coming from selection
+    if (tempSelectionRange) {
+      const span = document.createElement('span');
+      span.className = 'linked-text';
+      span.dataset.nodeId = id;
+      span.id = `highlight-${id}`;
+      span.textContent = tempSelectionRange.toString();
+      span.onclick = () => focusNode(id);
+      
+      tempSelectionRange.deleteContents();
+      tempSelectionRange.insertNode(span);
+      window.getSelection().removeAllRanges();
+    }
+  }
+
+  updateUI();
+  redraw();
+  saveState();
+  closeModal('nodeModal');
+}
+
+/**
+ * MODAL LOGIC (CONNECTIONS)
+ */
+function openConnEditModal(index) {
+  const conn = state.connections[index];
+  if (!conn) return;
+  const n1 = state.nodes.find(n => n.id === conn.from);
+  const n2 = state.nodes.find(n => n.id === conn.to);
+  
+  document.getElementById('editConnIndex').value = index;
+  document.getElementById('editConnLabel').value = `${n1 ? n1.name : '?'} → ${n2 ? n2.name : '?'}`;
+  document.getElementById('editConnType').value = conn.type;
+  document.getElementById('editConnStrength').value = conn.strength || 3;
+  
+  document.getElementById('connEditModal').classList.add('open');
+}
+
+function handleConnEditSave() {
+  const idx = parseInt(document.getElementById('editConnIndex').value);
+  const type = document.getElementById('editConnType').value;
+  const strength = parseInt(document.getElementById('editConnStrength').value);
+  
+  if (state.connections[idx]) {
+    state.connections[idx].type = type;
+    state.connections[idx].strength = strength;
+    updateUI();
+    redraw();
+    saveState();
+  }
+  closeModal('connEditModal');
+}
+
+function deleteConnFromModal() {
+  const idx = parseInt(document.getElementById('editConnIndex').value);
+  if (confirm('Удалить эту связь?')) {
+    state.connections.splice(idx, 1);
+    updateUI();
+    redraw();
+    saveState();
+    closeModal('connEditModal');
+  }
+}
+
+
+/**
+ * TRANSCRIPT & TEXT SELECTION LOGIC
+ */
+let currentSelectionRange = null;
+
+transcriptEditor.addEventListener('mouseup', handleTextSelection);
+transcriptEditor.addEventListener('keyup', handleTextSelection);
+
+function handleTextSelection() {
+  const selection = window.getSelection();
+  if (!selection.rangeCount || selection.isCollapsed) {
+    tooltip.classList.remove('visible');
+    return;
+  }
+  
+  // Only show if selection is inside editor
+  if (!transcriptEditor.contains(selection.anchorNode)) return;
+
+  const range = selection.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
+  
+  currentSelectionRange = range.cloneRange();
+  
+  // Position tooltip
+  tooltip.style.left = `${rect.left}px`;
+  tooltip.style.top = `${rect.top - 40}px`;
+  tooltip.classList.add('visible');
+}
+
+// Click on tooltip -> Open Modal
+tooltip.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  if (!currentSelectionRange) return;
+  
+  const text = currentSelectionRange.toString().trim();
+  if (!text) return;
+  
+  openNodeModal('create', { text: text, range: currentSelectionRange.cloneRange() });
+  tooltip.classList.remove('visible');
+});
+
+// Connections (Quick Add)
+document.getElementById('addConnBtn').addEventListener('click', () => {
+  const from = parseInt(document.getElementById('connFrom').value);
+  const to = parseInt(document.getElementById('connTo').value);
+  const type = document.getElementById('connType').value;
+  const strength = parseInt(document.getElementById('connStrength').value);
+
+  if (from && to && from !== to) {
+    state.connections.push({ from, to, type, strength });
+    updateUI();
+    redraw();
+    saveState();
+  }
+});
+
+function focusNode(id) {
+  const node = state.nodes.find(n => n.id === id);
+  if (node) {
+    // Pan to node
+    const centerScreen = { x: canvas.width/2, y: canvas.height/2 };
+    state.pan.x = (centerScreen.x / state.zoom) - node.x;
+    state.pan.y = (centerScreen.y / state.zoom) - node.y;
+    redraw();
+  }
+}
+
+function highlightTranscriptText(nodeId) {
+  // Remove old active
+  document.querySelectorAll('.linked-text.active').forEach(el => el.classList.remove('active'));
+  
+  const span = document.getElementById(`highlight-${nodeId}`);
+  if (span) {
+    span.classList.add('active');
+    span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+/**
+ * UI UPDATES
+ */
+function updateUI() {
+  const nodesList = document.getElementById('nodesList');
+  const connectionsList = document.getElementById('connectionsList');
+  const connFrom = document.getElementById('connFrom');
+  const connTo = document.getElementById('connTo');
+  
+  // Clear lists
+  nodesList.innerHTML = '';
+  connectionsList.innerHTML = '';
+  connFrom.innerHTML = '';
+  connTo.innerHTML = '';
+
+  // 1. Render Nodes
+  state.nodes.forEach(node => {
+    // List Item
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    
+    // Determine category badge color
+    const catColor = colors[node.category] || '#ccc';
+    const catName = categoryLabels[node.category] || node.category;
+
+    div.innerHTML = `
+      <div onclick="focusNode(${node.id})" style="flex:1; display:flex; align-items:center;">
+        <span class="cat-badge" style="background:${catColor}">${catName}</span>
+        <span style="font-weight:600; color:#333; margin-right:5px;">${node.name}</span>
+        <span style="font-size:0.75em; color:#999;">#${node.id}</span>
+      </div>
+      <div class="list-actions">
+        <span onclick="openNodeModal('edit', state.nodes.find(n=>n.id===${node.id}))">✎</span>
+        <span onclick="deleteNode(${node.id})">🗑</span>
+      </div>
+    `;
+    nodesList.appendChild(div);
+
+    // Select Options for Quick Add
+    const opt1 = new Option(`${node.id}. ${node.name}`, node.id);
+    const opt2 = new Option(`${node.id}. ${node.name}`, node.id);
+    connFrom.add(opt1);
+    connTo.add(opt2);
+  });
+
+  // 2. Render Connections
+  if (state.connections.length === 0) {
+    connectionsList.innerHTML = '<div style="padding:10px; color:#999; text-align:center; font-size:0.85rem;">Нет связей</div>';
+  } else {
+    state.connections.forEach((conn, index) => {
+        const n1 = state.nodes.find(n => n.id === conn.from);
+        const n2 = state.nodes.find(n => n.id === conn.to);
+        if(!n1 || !n2) return;
+
+        const div = document.createElement('div');
+        div.className = 'list-item';
+        div.onclick = (e) => { 
+            // open edit unless delete clicked
+            if(!e.target.closest('.list-actions')) openConnEditModal(index);
+        };
+
+        const typeLabels = {
+            activates: "Активирует",
+            inhibits: "Подавляет",
+            supports: "Поддерживает",
+            contradicts: "Противоречит"
+        };
+        const typeColors = {
+            activates: "#51cf66",
+            inhibits: "#fa5252",
+            supports: "#228be6",
+            contradicts: "#fd7e14"
+        };
+
+        div.innerHTML = `
+            <div style="flex:1;">
+                <div style="font-weight:600; color:#444;">${n1.name} → ${n2.name}</div>
+                <div style="font-size:0.75rem; color:${typeColors[conn.type]};">
+                    ${typeLabels[conn.type]} (Сила: ${conn.strength})
+                </div>
+            </div>
+            <div class="list-actions">
+                <span onclick="event.stopPropagation(); deleteConn(${index})">🗑</span>
+            </div>
+        `;
+        connectionsList.appendChild(div);
+    });
+  }
+}
+
+window.deleteNode = (id) => {
+  if(!confirm('Удалить узел?')) return;
+  state.nodes = state.nodes.filter(n => n.id !== id);
+  state.connections = state.connections.filter(c => c.from !== id && c.to !== id);
+  
+  // Remove highlight in text
+  const span = document.getElementById(`highlight-${id}`);
+  if (span) {
+    // Keep text, remove span
+    const text = document.createTextNode(span.textContent);
+    span.parentNode.replaceChild(text, span);
+  }
+  
+  updateUI();
+  redraw();
+  saveState();
+  closeModal('nodeModal'); // in case open
+};
+
+window.deleteConn = (index) => {
+    if(!confirm('Удалить эту связь?')) return;
+    state.connections.splice(index, 1);
+    updateUI();
+    redraw();
+    saveState();
+};
+
+
+/**
+ * FILE I/O
+ */
+function saveState() {
+  const data = {
+    ...state,
+    htmlContent: transcriptEditor.innerHTML // Save annotated HTML
+  };
+  localStorage.setItem('supervisor_autosave', JSON.stringify(data));
+  
+  const ind = document.getElementById('autosaveIndicator');
+  ind.classList.add('show');
+  setTimeout(() => ind.classList.remove('show'), 1500);
+}
+
+function loadState(data) {
+  if (!data) return;
+
+  // 1. Load Nodes
+  let rawNodes = data.nodes || [];
+  let rawConns = data.connections || [];
+  
+  // 2. Migration Check
+  // Metadata check for Index-based connections (Legacy Format Compatibility)
+  const isIndexBased = data.metadata?.connectionType === 'index';
+  // Check for Raw Legacy file (no IDs)
+  const isLegacyRaw = rawNodes.length > 0 && typeof rawNodes[0].id === 'undefined';
+
+  if (isIndexBased) {
+    // Case 1: Import file that WAS exported by this tool for compatibility
+    // Nodes have IDs, but connections use array indices (0, 1, 2)
+    state.nodes = rawNodes;
+    // Map connections back to IDs
+    state.connections = rawConns.map(c => ({
+      ...c,
+      from: rawNodes[c.from] ? rawNodes[c.from].id : null,
+      to: rawNodes[c.to] ? rawNodes[c.to].id : null
+    })).filter(c => c.from !== null && c.to !== null);
+    
+    // Determine last ID
+    const maxId = state.nodes.reduce((max, n) => Math.max(max, n.id || 0), 0);
+    state.lastId = Math.max(data.lastId || 0, maxId);
+
+  } else if (isLegacyRaw) {
+    // Case 2: Import original file from Old Tool (no IDs at all)
+    // Create IDs based on index
+    state.nodes = rawNodes.map((n, index) => ({
+      ...n,
+      id: index
+    }));
+    // Connections are already indices, map them to new IDs (which are same as indices)
+    state.connections = rawConns;
+    
+    state.lastId = rawNodes.length > 0 ? rawNodes.length - 1 : 0;
+
+  } else {
+    // Case 3: Standard Native Import (ID based)
+    state.nodes = rawNodes;
+    state.connections = rawConns;
+    
+    // Fix potential ID collisions or missing lastId
+    const maxId = state.nodes.reduce((max, n) => Math.max(max, n.id || 0), 0);
+    state.lastId = Math.max(data.lastId || 0, maxId);
+  }
+
+  // Sanitize Connections
+  const nodeIds = new Set(state.nodes.map(n => n.id));
+  state.connections = state.connections.filter(c => 
+    nodeIds.has(c.from) && nodeIds.has(c.to)
+  );
+
+  if (data.htmlContent) transcriptEditor.innerHTML = data.htmlContent;
+  
+  // Re-attach events to spans
+  document.querySelectorAll('.linked-text').forEach(span => {
+    const id = parseInt(span.dataset.nodeId);
+    span.onclick = () => focusNode(id);
+  });
+
+  updateUI();
+  redraw();
+}
+
+// Load on start
+const saved = localStorage.getItem('supervisor_autosave');
+if (saved) loadState(JSON.parse(saved));
+
+// === UPDATED EXPORT LOGIC FOR BACKWARD COMPATIBILITY ===
+document.getElementById('saveBtn').onclick = () => {
+  // Prepare Nodes (Keep as is, old tool ignores 'id')
+  const exportNodes = state.nodes;
+  
+  // Prepare Connections: CONVERT IDs TO ARRAY INDICES
+  // This ensures the Old Tool (which uses array indices) reads them correctly
+  const exportConns = state.connections.map(c => {
+     const fromIdx = state.nodes.findIndex(n => n.id === c.from);
+     const toIdx = state.nodes.findIndex(n => n.id === c.to);
+     return { 
+       ...c, 
+       from: fromIdx, 
+       to: toIdx 
+     };
+  }).filter(c => c.from !== -1 && c.to !== -1); // Remove broken links
+
+  // Final Data Object
+  const exportData = {
+    nodes: exportNodes,
+    connections: exportConns,
+    zoom: state.zoom,
+    pan: state.pan,
+    lastId: state.lastId,
+    htmlContent: transcriptEditor.innerHTML,
+    // Mark as Index-Based so this tool knows how to read it back later
+    metadata: { connectionType: 'index' }
+  };
+
+  const dataStr = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([dataStr], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `supervisor_session_compat_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+};
+
+document.getElementById('importBtn').onclick = () => {
+  document.getElementById('importFile').click();
+};
+
+document.getElementById('importFile').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      loadState(data);
+      saveState(); // Update autosave
+      alert('Данные успешно загружены!');
+    } catch(err) {
+      alert('Ошибка при чтении файла');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+};
+
+document.getElementById('demoBtn').onclick = () => {
+  if(!confirm('Загрузить демо-данные? Текущая работа будет удалена.')) return;
+  
+  const demoText = `Клиент: "Я постоянно чувствую тревогу, когда думаю о работе. Мне кажется, что я не справлюсь, что все увидят мою некомпетентность."
+  
+Терапевт: "Звучит так, будто ваш ум подбрасывает вам историю о 'самозванце'. Что вы чувствуете в теле, когда эти мысли приходят?"
+
+Клиент: "Сжимается в груди, хочется спрятаться. Я начинаю откладывать задачи, чтобы не сталкиваться с этим страхом."`;
+
+  transcriptEditor.innerHTML = demoText;
+  
+  state.nodes = [
+    {id:1, name:"Мысли о провале", type:"base", category:"cognitive", x: -100, y: -50, desc:"'Я не справлюсь'"},
+    {id:2, name:"Тревога", type:"base", category:"affective", x: -100, y: 50, desc:"Сжатие в груди"},
+    {id:3, name:"Избегание", type:"base", category:"behavioral", x: 100, y: 0, desc:"Откладывание задач"},
+    {id:4, name:"Внутренний Критик", type:"part", category:"base", x: -250, y: -100, desc:"Голос требовательности"}
+  ];
+  
+  state.connections = [
+    {from:1, to:2, type:"activates", strength:4},
+    {from:2, to:3, type:"activates", strength:5},
+    {from:4, to:1, type:"supports", strength:3},
+    {from:3, to:2, type:"supports", strength:2} // vicious cycle
+  ];
+  state.lastId = 4;
+  
+  updateUI();
+  redraw();
+};
+
+document.getElementById('clearBtn').onclick = () => {
+  if(confirm('Очистить всё?')) {
+    state.nodes = [];
+    state.connections = [];
+    transcriptEditor.innerHTML = '';
+    updateUI();
+    redraw();
+  }
+}
+
+// Resizer logic
+const resizer = document.getElementById('resizer');
+const leftPanel = document.getElementById('transcriptPanel');
+
+resizer.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  document.addEventListener('mousemove', resizePanel);
+  document.addEventListener('mouseup', stopResize);
+});
+
+function resizePanel(e) {
+  const newWidth = e.clientX;
+  if (newWidth > 200 && newWidth < 800) {
+    leftPanel.style.width = newWidth + 'px';
+    resize();
+  }
+}
+
+function stopResize() {
+  document.removeEventListener('mousemove', resizePanel);
+  document.removeEventListener('mouseup', stopResize);
+}
+
+</script>
+</body>
+</html>
