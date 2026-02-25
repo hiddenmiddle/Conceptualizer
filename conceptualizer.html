@@ -387,6 +387,9 @@
                <input type="number" id="connStrength" class="form-control" value="3" min="1" max="5">
              </div>
            </div>
+           <div style="margin-top:10px;">
+             <textarea id="connDesc" class="form-control" rows="2" placeholder="Цитата / описание связи" style="font-size:0.85rem;"></textarea>
+           </div>
            <button type="button" id="addConnBtn" class="btn btn-secondary" style="width:100%; margin-top:10px; justify-content:center;">Связать</button>
         </form>
 
@@ -480,6 +483,11 @@
       <div class="form-group">
         <label>Сила связи (толщина)</label>
         <input type="number" id="editConnStrength" class="form-control" min="1" max="5">
+      </div>
+
+      <div class="form-group">
+        <label>Цитата / Описание</label>
+        <textarea id="editConnDesc" class="form-control" rows="3" placeholder="Детали или цитата из текста"></textarea>
       </div>
 
       <div class="modal-actions">
@@ -915,7 +923,8 @@ function openConnEditModal(index) {
   document.getElementById('editConnLabel').value = `${n1 ? n1.name : '?'} → ${n2 ? n2.name : '?'}`;
   document.getElementById('editConnType').value = conn.type;
   document.getElementById('editConnStrength').value = conn.strength || 3;
-  
+  document.getElementById('editConnDesc').value = conn.desc || '';
+
   document.getElementById('connEditModal').classList.add('open');
 }
 
@@ -923,10 +932,12 @@ function handleConnEditSave() {
   const idx = parseInt(document.getElementById('editConnIndex').value);
   const type = document.getElementById('editConnType').value;
   const strength = parseInt(document.getElementById('editConnStrength').value);
-  
+  const desc = document.getElementById('editConnDesc').value.trim();
+
   if (state.connections[idx]) {
     state.connections[idx].type = type;
     state.connections[idx].strength = strength;
+    state.connections[idx].desc = desc;
     updateUI();
     redraw();
     saveState();
@@ -993,9 +1004,11 @@ document.getElementById('addConnBtn').addEventListener('click', () => {
   const to = parseInt(document.getElementById('connTo').value);
   const type = document.getElementById('connType').value;
   const strength = parseInt(document.getElementById('connStrength').value);
+  const desc = document.getElementById('connDesc').value.trim();
 
   if (from && to && from !== to) {
-    state.connections.push({ from, to, type, strength });
+    state.connections.push({ from, to, type, strength, desc });
+    document.getElementById('connDesc').value = '';
     updateUI();
     redraw();
     saveState();
@@ -1104,6 +1117,7 @@ function updateUI() {
                 <div style="font-size:0.75rem; color:${typeColors[conn.type]};">
                     ${typeLabels[conn.type]} (Сила: ${conn.strength})
                 </div>
+                ${conn.desc ? `<div style="font-size:0.75rem; color:#888; font-style:italic; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">"${conn.desc}"</div>` : ''}
             </div>
             <div class="list-actions">
                 <span onclick="event.stopPropagation(); deleteConn(${index})">🗑</span>
@@ -1309,10 +1323,10 @@ document.getElementById('demoBtn').onclick = () => {
   ];
   
   state.connections = [
-    {from:1, to:2, type:"activates", strength:4},
-    {from:2, to:3, type:"activates", strength:5},
-    {from:4, to:1, type:"supports", strength:3},
-    {from:3, to:2, type:"supports", strength:2} // vicious cycle
+    {from:1, to:2, type:"activates", strength:4, desc:"Когда думаю о работе — тревога"},
+    {from:2, to:3, type:"activates", strength:5, desc:"Хочется спрятаться от страха"},
+    {from:4, to:1, type:"supports", strength:3, desc:"Голос критика усиливает мысли"},
+    {from:3, to:2, type:"supports", strength:2, desc:""} // vicious cycle
   ];
   state.lastId = 4;
   
