@@ -342,6 +342,7 @@
     <button class="btn btn-secondary" id="demoBtn">🎲 Демо данные</button>
     <button class="btn btn-secondary" id="importBtn">⬆ Загрузить</button>
     <button class="btn btn-primary" id="saveBtn">💾 Скачать JSON</button>
+    <button class="btn btn-secondary" id="saveFullBtn">📎 Сохранить с текстом</button>
     <button class="btn btn-danger" id="clearBtn">Очистить</button>
     <input type="file" id="importFile" accept=".json" style="display:none;">
   </div>
@@ -1260,15 +1261,13 @@ document.getElementById('saveBtn').onclick = () => {
      };
   }).filter(c => c.from !== -1 && c.to !== -1); // Remove broken links
 
-  // Final Data Object
+  // Final Data Object (graph only, no transcript)
   const exportData = {
     nodes: exportNodes,
     connections: exportConns,
     zoom: state.zoom,
     pan: state.pan,
     lastId: state.lastId,
-    htmlContent: transcriptEditor.innerHTML,
-    // Mark as Index-Based so this tool knows how to read it back later
     metadata: { connectionType: 'index' }
   };
 
@@ -1277,7 +1276,36 @@ document.getElementById('saveBtn').onclick = () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `supervisor_session_compat_${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `supervisor_graph_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+};
+
+// Full project export (graph + transcript with highlights)
+document.getElementById('saveFullBtn').onclick = () => {
+  const exportNodes = state.nodes;
+
+  const exportConns = state.connections.map(c => {
+    const fromIdx = state.nodes.findIndex(n => n.id === c.from);
+    const toIdx = state.nodes.findIndex(n => n.id === c.to);
+    return { ...c, from: fromIdx, to: toIdx };
+  }).filter(c => c.from !== -1 && c.to !== -1);
+
+  const exportData = {
+    nodes: exportNodes,
+    connections: exportConns,
+    zoom: state.zoom,
+    pan: state.pan,
+    lastId: state.lastId,
+    htmlContent: transcriptEditor.innerHTML,
+    metadata: { connectionType: 'index' }
+  };
+
+  const dataStr = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([dataStr], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `supervisor_session_full_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 };
 
